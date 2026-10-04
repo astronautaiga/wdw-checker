@@ -22,27 +22,45 @@ def send_notification(message):
 
 def run():
     with sync_playwright() as p:
-        # HTTP/2エラー回避のための引数を追加
         browser = p.chromium.launch(
             headless=True,
             args=[
                 "--disable-http2",
                 "--no-sandbox",
-                "--disable-setuid-sandbox"
+                "--disable-setuid-sandbox",
+                "--disable-blink-features=AutomationControlled"
             ]
         )
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800}
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800},
+            locale="en-US"
         )
         page = context.new_page()
 
         print(f"[{TARGET_DATE}] 空き状況を確認中...")
-        try:
-            # 読み込み完了条件を domcontentloaded に変更してエラーを抑止
-            page.goto(URL, wait_until="domcontentloaded", timeout=60000)
-            time.sleep(7)  # 動的コンテンツの読み込み待ち
+        
+        # アクセス成功するまで最大3回試行
+        success = False
+        for attempt in range(1, 4):
+            try:
+                print(f"アクセス試行 {attempt} 回目...")
+                # wait_until="commit" で最速でレスポンスを受け取る
+                page.goto(URL, wait_until="commit", timeout=40000)
+                time.sleep(10)  # 画面上の要素がレンダリングされるのを待つ
+                success = True
+                break
+            except Exception as e:
+                print(f"試行 {attempt} 失敗: {e}")
+                time.sleep(5)
 
+        if not success:
+            print("3回の試行すべてでアクセスに失敗しました。")
+            browser.close()
+            sys.exit(1)
+
+        try:
+            # 予約可能時間ボタン要素のテキストを取得
             available_times = page.locator("button[data-testid='time-slot-button']").all_text_contents()
 
             if available_times:
@@ -51,9 +69,9 @@ def run():
                 print(msg)
                 send_notification(msg)
             else:
-                print("現在、空き枠はありません。")
+                print("現在、空き枠はありません（またはまだ読み込み中）。")
         except Exception as e:
-            print(f"エラーが発生しました: {e}")
+            print(f"要素取得時のエラー: {e}")
             sys.exit(1)
         finally:
             browser.close()
