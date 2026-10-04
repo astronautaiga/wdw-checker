@@ -4,8 +4,8 @@ import time
 import requests
 from playwright.sync_api import sync_playwright
 
-TARGET_DATE = os.environ.get("TARGET_DATE", "2026-11-15")
-PARTY_SIZE = os.environ.get("PARTY_SIZE", "2")
+TARGET_DATE = os.environ.get("TARGET_DATE", "2026-11-29")
+PARTY_SIZE = os.environ.get("PARTY_SIZE", "4")
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
 URL = f"https://disneyworld.disney.go.com/dining/riviera-resort/topolinos-terrace/booking/?partySize={PARTY_SIZE}&date={TARGET_DATE}"
@@ -22,16 +22,26 @@ def send_notification(message):
 
 def run():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # HTTP/2エラー回避のための引数を追加
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-http2",
+                "--no-sandbox",
+                "--disable-setuid-sandbox"
+            ]
+        )
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
         )
         page = context.new_page()
 
         print(f"[{TARGET_DATE}] 空き状況を確認中...")
         try:
-            page.goto(URL, wait_until="networkidle", timeout=60000)
-            time.sleep(5)
+            # 読み込み完了条件を domcontentloaded に変更してエラーを抑止
+            page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+            time.sleep(7)  # 動的コンテンツの読み込み待ち
 
             available_times = page.locator("button[data-testid='time-slot-button']").all_text_contents()
 
