@@ -35,4 +35,4 @@ jobs:
         TARGET_DATE: "2026-11-29"
         PARTY_SIZE: "4"
       run: |
-        python check_topolino.py4
+        python check_topolino.py
