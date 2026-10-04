@@ -26,7 +26,8 @@ jobs:
 
     - name: Playwrightブラウザのインストール
       run: |
-        playwright install --with-deps chromium
+        npx playwright install-deps chromium
+        playwright install chromium
 
     - name: 監視スクリプトの実行
       env:
