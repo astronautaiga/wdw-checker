@@ -2,9 +2,9 @@ name: WDW Reservation Checker
 
 on:
   schedule:
-    # 15分ごとに自動実行
-    - cron: '*/15 * * * *'
-  workflow_dispatch: # 手動実行ボタン用
+    # 30分〜1時間ごとの定期実行（APIの無料枠節約のため）
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   check-reservation:
@@ -24,14 +24,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Playwrightブラウザのインストール
-      run: |
-        npx playwright install-deps chromium
-        playwright install chromium
-
     - name: 監視スクリプトの実行
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         TARGET_DATE: "2026-11-29"
         PARTY_SIZE: "4"
       run: |
